@@ -3,65 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <title>多个视频的观后思考页面</title> -->
+    <title>notions</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
         }
-        .video-list {
+        .content-list {
             list-style-type: none;
             padding: 0;
         }
-        .video-item {
+        .content-item {
             margin-bottom: 30px;
+            border: 1px solid #ccc; /* 加边框 */
+            padding: 15px; /* 内间距 */
+            border-radius: 5px; /* 圆角 */
+            position: relative; /* 使标识绝对定位 */
         }
-        .video-title {
+        .content-item::before {
+            content: attr(data-type); /* 使用 data-type 属性作为标识内容 */
+            position: absolute;
+            top: -10px; /* 调整标识位置 */
+            left: -10px; /* 调整标识位置 */
+            background-color: #003366; /* 背景色 */
+            color: #fff; /* 字体颜色 */
+            padding: 5px 10px; /* 内间距 */
+            border-radius: 3px; /* 圆角 */
+            font-size: 14px; /* 字体大小 */
+        }
+        .content-title {
             font-size: 24px;
             margin-bottom: 10px;
         }
-        .video-description {
+        .content-description {
             color: #666;
             margin-bottom: 15px;
         }
-        .video-link {
-    display: inline-block;
-    background-color: #f1f1f1;
-    padding: 8px 16px;
-    text-decoration: none; /* 移除下划线 */
-    color: #003366; /* 设置链接颜色为深蓝色 */
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
-.video-link:hover {
-    background-color: #ddd;
-    color: #000; /* 可选：鼠标悬停时的颜色变化 */
-}
+        .content-link {
+            display: inline-block;
+            background-color: #f1f1f1;
+            padding: 8px 16px;
+            text-decoration: none; /* 移除下划线 */
+            color: #003366; /* 设置链接颜色为深蓝色 */
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .content-link:hover {
+            background-color: #ddd;
+            color: #000; /* 可选：鼠标悬停时的颜色变化 */
+        }
         .thoughts {
             margin-top: 10px;
             list-style-type: decimal;
         }
     </style>
 </head>
+
+
+
+<nav> 
+    <a href="index.html">Home</a> 
+    <a href="MusicRecommanded.html">Music Recommanded</a>
+    <a href="NotionHere.html">Notion Here</a> 
+    <a href="LearningHistory.html">Learning History</a> 
+</nav> 
+
+
+
 <body>
 
 <h1>Here is my imagining things.</h1>
 
-<ul class="video-list">
+<ul class="content-list">
+
     <!-- 视频1 -->
-    <li class="video-item">
-        <h2 class="video-title"> <a href="https://www.youtube.com/watch?v=kMBjzxKYWw4" style="text-decoration: none; color: #003366;" >大模型解决不了英伟达的难题，AI新范式必将出现：专访安克创新CEO阳萌</a></h2>
-        <!-- <p class="video-description">这是关于视频1的简短描述，包括可能的主题和亮点。</p> -->
-       
+    <li class="content-item" data-type="video">
+        <h2 class="content-title">
+            <a href="https://www.youtube.com/watch?v=kMBjzxKYWw4" style="text-decoration: none; color: #003366;">
+                大模型解决不了英伟达的难题，AI新范式必将出现：专访安克创新CEO阳萌
+            </a>
+        </h2>
         <ul class="thoughts">
             <li>对于视频1的主题，你有什么见解？</li>
             <li>视频1中的某个特定场景对你有何触动？</li>
         </ul>
     </li>
 
+    <!-- 视频2 -->
+    <li class="content-item" data-type="paper">
+        <h2 class="content-title">
+            <a href="" style="text-decoration: none; color: #003366;">
+                GPipe: 模型并行
+            </a>
+        </h2>
+        <ul class="thoughts">
+            提出了两个细节的解决方案：
+            <li>Network partition（网络分片）：将一个N层的网络划分成K个partition，每个partition在单独的TPU上执行，partition之间需要插入一些网络通信操作。</li>
+            <li>Pipeline parallelism（流水线并行）：把CPU里的流水线并发技术用在了深度学习上，主要是把计算和网络通信两种操作，更好地重排列。即自动将mini-batch的训练样本分成更小的micro-batch，并在pipeline中运行，使TPU核心能够并行操作。</li>
+            <li>Gradient Accumulation（梯度累积）：梯度一直在micro-batch中累积，因此分区数量不会影响模型质量。</li>
+            <li>Re-Materialization（重计算）：Re-Materialization具体是指在前向计算过程中，GPipe只记录stage划分处的输出，在计算梯度时，GPipe会重新执行前向计算逻辑，从而得到各个算子的前向结果，然后再计算梯度结果。跟OpenAI开源的gradient-checkpointing一样，只不过GPipe是在TPU上实现的，OpenAI的只能运行在GPU上。</li>
+        </ul>
+    </li>
 
+    <!-- 论文1 -->
+    <li class="content-item" data-type="论文">
+        <h2 class="content-title">
+            <a href="https://example.com/paper1" style="text-decoration: none; color: #003366;">
+                Example Research Paper 1
+            </a>
+        </h2>
+        <ul class="thoughts">
+            <li>论文1的核心观点是什么？</li>
+            <li>论文1的研究方法有哪些优缺点？</li>
+        </ul>
+    </li>
 
-    <!-- 更多视频... -->
+    <!-- 论文2 -->
+    <li class="content-item" data-type="论文">
+        <h2 class="content-title">
+            <a href="https://example.com/paper2" style="text-decoration: none; color: #003366;">
+                Example Research Paper 2
+            </a>
+        </h2>
+        <ul class="thoughts">
+            <li>论文2提出了哪些创新点？</li>
+            <li>你认为论文2的结论是否可靠？为什么？</li>
+        </ul>
+    </li>
+
 </ul>
 
 </body>

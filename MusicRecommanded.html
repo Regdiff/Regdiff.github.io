@@ -1,78 +1,89 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>Music Recommendations</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f0f0f0;
-            margin: 0;
+            line-height: 1.6;
+        }
+        .music-list {
+            list-style-type: none;
             padding: 0;
         }
-        .container {
-            margin-top: 50px;
+        .music-item {
+            margin-bottom: 30px;
         }
-        .music-recommendation {
-            margin: 20px auto;
-            padding: 20px;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            border-radius: 10px;
-            width: auto;
-            max-width: 90%;
-            min-width: 300px;
-            text-align: left;
-        }
-        .music-recommendation h2 {
-            margin: 0 0 10px 0;
+        .music-title {
             font-size: 24px;
-            color: #333;
+            margin-bottom: 10px;
         }
-        .music-recommendation p {
-            font-size: 16px;
+        .music-description {
             color: #666;
-            margin: 5px 0;
+            margin-bottom: 15px;
+        }
+        .music-link {
+    display: inline-block;
+    background-color: #f1f1f1;
+    padding: 8px 16px;
+    text-decoration: none; /* 移除下划线 */
+    color: #107eeb; /* 设置链接颜色为深蓝色 */
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+.music-link:hover {
+    background-color: #ddd;
+    color: #000; /* 可选：鼠标悬停时的颜色变化 */
+}
+        .thoughts {
+            margin-top: 10px;
+            list-style-type: decimal;
         }
     </style>
 </head>
+
+<nav> 
+    <a href="index.html">Home</a> 
+    <a href="MusicRecommanded.html">Music Recommanded</a>
+    <a href="NotionHere.html">Notion Here</a> 
+    <a href="LearningHistory.html">Learning History</a> 
+</nav> 
+
+
 <body>
-    <div class="container">
-        <h1>Recommended Music</h1>
+<h1>Here is something I want share with u.</h1>
+
+<ul class="music-list">
+
+    <li class="music-item">
+        <h2 class="music-title"> <a href="https://music.163.com/song?id=381858&userid=403387660"> 为你唱首歌 </a></h2>
+        <p>莎菲娜 莎菲娜 哭泣时的拥抱<br>
+            莎菲娜 莎菲娜 哭泣时的拥抱</p>
+    </li>
 
 
 
-        <div class="music-recommendation">
-            <h2>   <a href="https://music.163.com/song?id=554146664&userid=403387660"> Put It On Me </a></h2>
-
-            <p>Lyrics: <br> I know that you'd never feel like I do. I will break into pieces right in front of you</p>
-        </div>
-
-        <!-- <div class="music-recommendation">
-            <h2>    安静 </h2>
-
-            <p>Lyrics:  <br>我根本不想分开 <br>
-
-                为什么还要我用微笑来带过 <br>
-                
-                我没有这种天分<br>
-                
-                包容你也接受他</p>
-        </div> -->
-
-        <div class="music-recommendation">
-            <h2>   <a href="https://music.163.com/song?id=1410118416&userid=403387660">Goin on </a></h2>
-
-            <p>Lyrics: <br> Think about my lady calling someone else a baby <br>
+    <li class="music-item">
+        <h2 class="music-title"> <a href="https://music.163.com/song?id=554146664&userid=403387660"> Put It On Me </a></h2>
+        <p>I know that you'd never feel like I do. I will break into pieces right in front of you</p>
+    </li>
 
 
-                Drives me crazy, so I'm never letting go</p>
-        </div>
+    <li class="music-item">
+        <h2>   <a href="https://music.163.com/song?id=1410118416&userid=403387660">Goin' On </a></h2>
+        <p> Think about my lady calling someone else a baby <br>
+            Drives me crazy, so I'm never letting go</p>
+    </li>
 
 
 
 
-    </div>
+
+
+
+</ul>
+
 </body>
 </html>

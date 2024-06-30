@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recordings</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+        .content-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .content-item {
+            margin-bottom: 30px;
+            border: 1px solid #ccc; /* 加边框 */
+            padding: 15px; /* 内间距 */
+            border-radius: 5px; /* 圆角 */
+            position: relative; /* 使标识绝对定位 */
+        }
+        .content-item::before {
+            content: attr(data-type); /* 使用 data-type 属性作为标识内容 */
+            position: absolute;
+            top: -10px; /* 调整标识位置 */
+            left: -10px; /* 调整标识位置 */
+            background-color: #003366; /* 背景色 */
+            color: #fff; /* 字体颜色 */
+            padding: 5px 10px; /* 内间距 */
+            border-radius: 3px; /* 圆角 */
+            font-size: 14px; /* 字体大小 */
+        }
+        .content-title {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .content-description {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .content-link {
+            display: inline-block;
+            background-color: #f1f1f1;
+            padding: 8px 16px;
+            text-decoration: none; /* 移除下划线 */
+            color: #003366; /* 设置链接颜色为深蓝色 */
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        .content-link:hover {
+            background-color: #ddd;
+            color: #000; /* 可选：鼠标悬停时的颜色变化 */
+        }
+        .thoughts {
+            margin-top: 10px;
+            list-style-type: decimal;
+        }
+        .image-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px; /* 图片之间的间距 */
+        }
+        .image-row img {
+            max-width: calc(25% - 10px); /* 图片占据父容器的四分之一并减去间距 */
+            flex: 1 1 calc(25% - 10px); /* 保证每张图片的宽度自适应 */
+            height: auto; /* 保持图片比例 */
+        }
+    </style>
+</head>
+
+<nav> 
+    <a href="index.html">Home</a> 
+    <a href="MusicRecommanded.html">Music Recommanded</a>
+    <a href="NotionHere.html">Notion Here</a> 
+    <a href="LearningHistory.html">Learning History</a> 
+</nav> 
+
+
+
+<body>
+
+<h1>Here is my recordings.</h1>
+
+<ul class="content-list">
+
+    <!-- 五月 -->
+    <li class="content-item" data-type="May">
+
+        <ul class="thoughts">
+            阅读了《智能计算系统》。<br>
+        </ul>
+    </li>
+
+    <!-- 六月 -->
+    <li class="content-item" data-type="June">
+
+        <ul class="thoughts">
+            06/02 I have learned the basic the Mathematical Logic and the beginning of theory of graph. Learned basic compiler and some AI compiler.</li>
+            06/03 I have installed Ubuntu in Win, LLVM, and MLIR.<br>
+            06/05 Reviewed syntax of C++.<br>
+            06/09 Installed the TVM. Start learning TVM.<br>
+            06/11 学习AI编译器后端优化<br>
+            06/12 复习了编译原理，还有一些其他的一些技术。TVM应该开始看了（了解到一个和周老师很相关的项目“在硬件设计流程中，MLIR（Multi-Level Intermediate Representation）和 CIRCT（Circuit IR Compilers and Tools）项目的结合提供了一种灵活和高效的方法来处理硬件描述和优化。”）<br>
+            06/14 今天跑Polygeist跑不通，感觉是系统的问题。重新用Ubuntu搞了一下MLIR，太久了，（不是Win的问题，自己没搞好路径，well）。明天计划把Tianqi Chen的机器学习编译看完，然后把Toy Tutorial学一下<br>
+            06/17 继续跑Polygeist，还得看SMR论文，陈天奇的MLC看了前两章，感觉全是TVM的东西，不知道还需不需要学，回头重新了解LLVM。<br>
+            06/20 开始看了一本非常棒的数学书《现代数学的概念》<br>
+            06/21 上午把Polygeist跑通了，中午去把那本书又看了一些<br>
+            06/22 忙里偷闲把那本书看完了。<br>
+            06/23 - 06/25 出去玩<br>
+        </ul>
+
+        <div class="image-row">
+            <img src="pic/6_23/微信图片_20240626132303.jpg" alt="Image 1">
+            <img src="pic/6_23/微信图片_20240626132315.jpg" alt="Image 2">
+            <img src="pic/6_23/微信图片_20240626132320.jpg" alt="Image 3">
+            <img src="pic/6_23/微信图片_20240626133052.jpg" alt="Image 4">
+        </div>
+    </li>
+
+    <!-- 其他月份可以依次类推 -->
+    
+</ul>
+
+</body>
+</html>
