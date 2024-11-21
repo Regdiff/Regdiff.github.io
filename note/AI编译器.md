@@ -1,19 +1,5 @@
 # AI编译器
 
-## 传统编译器
-
-科学家为编译器抽象出了编译器前端，编译器中端，编译器后端等概念，并引入 IR (Intermediate Representation) 的概率。解释如下：
-
-- 编译器前端：接收 C/C++/Java 等不同语言，进行代码生成，吐出 IR
-- 编译器中端：接收 IR，进行不同编译器后端可以共享的优化，如常量替换，死代码消除，循环优化等，吐出优化后的 IR
-- 编译器后端：接收优化后的 IR，进行不同硬件的平台相关优化与硬件指令生成，吐出目标文件
-
-
-
-
-
-
-
 
 
 ## AI编译器
@@ -622,3 +608,38 @@ Meta Schedule 提供了多种内置的探索策略，可以详尽或高效地进
 所有度量记录都经过序列化并存储在数据库中。数据库记录的内容包括工作负载，序列化的 TensorIR;执行测量的硬件目标;参数类型：输入张量的形状和 dtype；运行时间等。
 
 在 Meta scheduler 中，成本模型、数据库、特征提取器、程序运行器等都是可定制、易于扩展的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 
+
+# 动态 shape 的挑战与解决现状
+
+
+
+
+
+概述动态 shape 是什么一般是 2 个问题：Tensor 的 shape 是动态的。Control flow 的动态性。即 if-else / loop 类的结构。比如，where，while，Switch 等。注：PyTorch 的动态图，与动态 shape 是 2 个不同的概念。Tensor shape 的动态性，类型比较多。比如：变化的 batch size。变化的 input shape。CV 模型的 image resolution，NLP 模型的 input sequence length。算子逻辑导致的。unique，nonzero。稀疏矩阵导致的。输入可以是静态的，但为了节约存储空间，使用稀疏矩阵表示，成了动态 shape。搜推模型用的多。动态 shape 与 Control flow 相互影响。其他特殊情况。比如，random 算子、range 算子，可能间接导致动态 shape。解决方案，集中在 compiler 层面。核心是如何 static 化，基本靠 padding。动态 shape 的挑战Compiler 不擅长处理动态 shape。静态 shape 语义下比较确定性的问题，动态 shape 场景很复杂。比如：算子占用的显存预估 & 调度策略，是否需要 implicit broadcast，[https://numpy.org/doc/stable/user/basics.broadcasting.html](http://link.zhihu.com/?target=https%3A//numpy.org/doc/stable/user/basics.broadcasting.html)指令层的向量化，codegen 模版选择。Broadcast 的例子A one dimensional array added to a two dimensional array results in broadcasting![img](https://pic1.zhimg.com/80/v2-7bbf8c3a54a27dd347cc9a4bf1f1d228_1440w.webp?source=d16d100b)
+Hardware 层面的困难：产生更多的数据依赖、跳转/条件分支等指令，导致更多的 流水线气泡 (pipeline stall)。codeine 时向量化的指令变少，生成更多的标量计算、稀碎的数据搬移指令。对 GPU / DSA 不友好。（还有别的吗？）pipeline stall on Control Flow 的例子![img](https://picx.zhimg.com/80/v2-aee6e13bdba7e2133825fe92a6e11bf2_1440w.webp?source=d16d100b)解决思路分 3 大类。software 层面，主要是 compiler 相关。核心是如何 static 化，基本靠 padding。hardware 层面，改进芯片设计。比如，control flow 改进、pipeline 改进、ISA 设计等。不解决不优化，用 cpu 慢慢跑。软件的解决方案“解决” 基本是不可能的，只能 case by case 的绕过去。图片来自 [AI编译优化--Dynamic Shape Compiler](https://zhuanlan.zhihu.com/p/305546437)![img](https://picx.zhimg.com/80/v2-1b67974a5a1cba3b8ca2ae2d3a1262cb_1440w.webp?source=d16d100b)1. Padding 成 static shapePadding 也分两种情况：模型的 input，可以在 CPU 上做 padding，灵活性很高，方案很多。Model 内部算子的 input，padding 不好做，有需求，但相对也少。模型 input 的常见 padding 方案：方案说明分析Naive padding把变化的维度，padding 到最大长度。- 问题：Shape length 变化很大时，计算效率非常低。
+\- 真实场景下，大部分 input 远小于 max length。多个模型，分桶准备 N 个模型，最大长度 64, 128，512, 2048。选最小可用的模型，padding 到对应长度。- 使用最广泛。一般，模型只需要训练一个最大的即可。
+\- 问题：常驻的显存增加 N 倍，上层的调度系统工作量增加。
+\- 适用范围，主要针对模型输入的动态 shape。不适内部算子的动态 shape，特别是，动态算子较多时，产生的 shape combination 爆炸。
+\- 需要提前调研和评估，从而选定模型尺寸。动态编译第一次执行时，不优化。执行后，根据真实 shape 编译出高性能版本。下次遇到符合的 shape，使用高性能版本。- 一些 AI compiler、算子库开始采用。比如，华为的 cann。
+\- 不用提前调研用户需求。
+\- 算法要求比较高，不能保存太多的 compile cache。否则，内存占用、query overhead 等，更复杂。crop 数据针对特别长的 input，数据截断不处理。- 作为系统健壮性的兜底方案，一般都会做，区别只是 threshold 的大小。
+\- 很多的 crop，基本不影响算法精度。比如，cv 场景把 225*226 的图片 crop 成 224 * 224。Bert 模型按 max length 512 截断。很可能，不影响模型在该条数据上最终输出。
+\- 精度受影响的 input，只要占比足够低，业务上都能接受。Padding 的主要难点引入较少/更少的无效数据。如表格里的方案。除了占用 memory / bandwidth，也可能增加 compute 时间。Padding 策略不能（明显）影响模型的精度表现。新策略，一般需要数学、算法实验论证。有工作量和研发成本。尺寸的局限性。以 CV 模型为例，700*700 的图片，padding 成 800*800，一般是可以的，但如果 padding 成 1600*1600，算法精度可能急剧下降。Padding 导致的内存搬运 or 不连续。Tensor 一般是高维的，但内存里通常是一维的排列。比如，灰度图的长宽是 2 维，RGB image 的 3 个 channel。如果 Padding 在 CPU 做，上述困难就简单很多。CPU 的计算通常不是瓶颈，也擅长处理 padding 问题。padding 的变化可能丰富，如下图。以二维数据（image）为例，多种 padding 策略，算法精度、计算效率的影响是很丰富的。![img](https://picx.zhimg.com/80/v2-be8c70e6089e03b364c1d60d024ac343_1440w.webp?source=d16d100b)2. 消除“伪”动态 shape很多看似是动态的模型，在推理时，完全等价于静态模型。推理框架、AI compiler 可以自动的静态化，模型精度无损失。典型场景：动态 batch size 引入 shape 等额外算子。如果固定 batch size，可以消除掉动态性。能静态化的算子。比如，flatten, gather, expand, slice 等。以 flatten 为例，见下表。flatten 有 2 个输入：data 和 axis。axis 取值不一样，Output shape 很可能会变，即，动态 shape。推理时，算子的 axis 一般是 constant 参数，不会变。即，可以处理成静态 shape。Data (Input) shapeaxisOutput shape(2, 3, 4, 5)0(1, 120)1(2, 60)2(6, 20)3(24, 5)3. Shape Constraint - 缩小动态的范围推理框架、AI compiler 尝试的另一个方向。有些“真”动态的算子，可以通过前后算子推演出 shape 的约束关系。AI compile 知道算子内存的 upper bound，可以明显缩小搜索空间。比如：Int8 推理时，unique 算子的输出，shape 的 upper bound 是 min(input length, 255)。A + B = C 场景，Add 算子的输入 vector A 和 vector B，shape 是相同的。4. 改代码、换算子有点难，普适性也不高。但，确实有一些能用的成熟规则。来自 habana 的例子：[https://docs.habana.ai/en/latest/PyTorch/Model_Optimization_PyTorch/Dynamic_Shapes.html#mitigation-techniques-for-dynamic-ops](http://link.zhihu.com/?target=https%3A//docs.habana.ai/en/latest/PyTorch/Model_Optimization_PyTorch/Dynamic_Shapes.html%23mitigation-techniques-for-dynamic-ops)![img](https://pic1.zhimg.com/80/v2-9c7aa8651ac835d87f71bf700903a21f_1440w.webp?source=d16d100b)5. Control Flow 的支持分 2 种情况：尝试消除 Control flow。基本就是编译原理、cpu pipeline 中 control flow 消除的方法。比如，loop unrolling (循环展开), Polyhedral Model （多面体模型）消除不掉的：if-else、switch 等条件选择分支，每个分支都编译，cache 起来。runtime 动态选择。Loop / while 等结束条件动态的循环，暂不知道加速方法。也比较少见。以 Polyhedral Model 为例，思路如下：当 if...else / loop 的判断条件 (cond) 全部已知时，影响判断条件的 N 个变量，所有取值构成一个 N 维空间。实际触发 compute 计算的，是 N 维空间里的一个 subset 子集。Compilation time 可以精确枚举 subset 子集，transform 成 1 层的 loop 循环。然后 loop unrolling (循环展开)，即，消掉了所有的 control flow 指令。详见 [https://www.cse.iitk.ac.in/users/swarnendu/courses/autumn2020-cs610/intro-to-polyhedral-model.pdf](http://link.zhihu.com/?target=https%3A//www.cse.iitk.ac.in/users/swarnendu/courses/autumn2020-cs610/intro-to-polyhedral-model.pdf)![img](https://picx.zhimg.com/80/v2-65cd38b7cfef931dfd17df0b8b3700d2_1440w.webp?source=d16d100b)6. Sequence Mask实现参考 [https://github.com/bytedance/effective_transformer](http://link.zhihu.com/?target=https%3A//github.com/bytedance/effective_transformer)思路：发现：模型的部分计算，与 token 的位置和上下文无关。可以把多个短 input 数据 concat 成 1 个长的，推理结果不变。方案：注册 TransformerInput、Transformer、TransformerOutput 三个算子，分别进行 input 数据标记、静态图计算、output 数据恢复。![img](https://picx.zhimg.com/80/v2-0bc9877ff26349c662ac8a4bbef5d524_1440w.webp?source=d16d100b)相关 AI compiler 调研AI compiler 总结主要看了 3 条线：NV 的 TensorRTMLIR。阿里的 BladeDISC。TVM 方向。relax，Amazon 的 Nimble 和 DietCode 2 个工作。从文章看，阿里的 BladeDISC 系列感觉最好，理解最深刻。没有实测过，真实情况不了解。其他 compiler:HAOTuner: A Hardware Adaptive Operator Auto-Tuner for Dynamic Shape Tensor Compilers [https://ieeexplore.ieee.org/document/10160123](http://link.zhihu.com/?target=https%3A//ieeexplore.ieee.org/document/10160123)[https://github.com/merrymercy/awesome-tensor-compilers](http://link.zhihu.com/?target=https%3A//github.com/merrymercy/awesome-tensor-compilers)具体的实现上，主要是 3 类工作。前 2 个是辅助，最后一个是目的。Shape 的语义编码 & IR 中的传递。shape function。运行时的 shape inference、shape 估算、上下界约束。调度。先把 static shape 的算法，迁移到动态 shape 上。然后再努力能设计点更厉害的。单算子分：计算密集型、访存密集型。调度算法有差异。基本都是拿时间换空间，比如，申请个稍微偏大的内存（冗余计算）、保持多个版本的 cache（知识库）。解决方案，本质都是：静态化。区别只是 coding 的工作量、overhead 的来源和大小。主要是 2 种静态化方法：Padding预分配更大的内存，比如，NMS。数学的说，static shape 是 global observationDynamic shape 是 partial observation，部分可观察。难以实现全局最优解。因此，求解的方法和难度，完全不一样。TensorRT - Padding没有详细调研。根据 [杨军 2022 年的文章](https://zhuanlan.zhihu.com/p/463629676) 描述，TensorRT 至今的动态 shape 方案，依然就是 padding。DISC - 阿里 基于 MLIRDISC：A Dynamic Shape Compiler for Machine Learning Workloads[https://browse.arxiv.org/pdf/2103.05288.pdf](http://link.zhihu.com/?target=https%3A//browse.arxiv.org/pdf/2103.05288.pdf)[https://github.com/alibaba/BladeDISC](http://link.zhihu.com/?target=https%3A//github.com/alibaba/BladeDISC)个人感觉最好的工作。2022 年，在 Transformer 中的加速比为 1.8 倍，优于 Nimble。Nvidia T4 硬件上几个真实的业务例子的性能收益数字：![img](https://picx.zhimg.com/80/v2-af4c7b393b9579a1caca0f88a74a5718_1440w.webp?source=d16d100b)海光 DCU 上几个真实业务例子上的性能数字：某识别类模型推理不同batchsize下 2.21X ～ 2.31X某检测类模型A推理不同batchsize下 1.73X ～ 2.1X某检测类模型B推理不同batchsize下 1.04X ～ 1.59X某分子动力学模型训练2.0XTVM - Relaxpaper 解读: [TVM Relax 如何支持 dynamic shape](https://zhuanlan.zhihu.com/p/627449108)个人看法：主要是解决 TVM 体系中的 shape 语义编码和 shape function。并没有直接解决任何模型的动态 shape 调度问题。距离实际产生价值，还有不少的工作量。Relax 只解决静态 rank 的动态 shape。不能解决 rank 也动态的情况。理解 shape 语义编码的好例子`@R.function def shape_example(x: R.Tensor[(n, 2, 2), "f32"]):    with R.dataflow(): lv0: R.Tensor[(n, 4), "f32"] = R.reshape(x, (n, 4))  lv1: R.Tensor[(n * 4,), "f32"] = R.flatten(lv0) lv2: R.Shape = (n * 4,) lv3: R.Shape = R.call_packed("myshape_func", lv2) `解读：shape 在 IR 中单独作为表达式存在了（lv2），以前在 relay 中只能是 tensor 的附属；shape 中可以包含 “n” 这样的未知变量了，运行时确定。编译时可推断：R.Tensor[(n, 4), "f32"] 的存储空间是 R.Tensor[(n, 2), "f32"] 的 2 倍。Nimble - AWS 基于 TVM亮点是，做了个基于 Virtual Matchine 的轻量级跨平台 runtime，将动态 shape 模型的运行时控制逻辑预构建为 VM 解释执行。TODO - 这个 VM 是什么，怎么帮助改进动态 shape 问题的，没细看，不懂。支持动态 shape 的额外开销：相比 TVM 静态模型性能降低 5%~25%，性能降低主要来自于动态 shape 算子 index 的计算和 VM 引入的指令开销；相比 TVM 额外占用 8% 内存Dense 算子 Full Dispatch 性能基本持平静态 shape，No Dispatch 性能最差。DietCode - AWS 基于 TVMpaper: [https://assets.amazon.science/14/33/43345d8142d8936ec591f5600aa5/dietcode-automatic-optimization-for-dynamic-tensor-programs.pdf](http://link.zhihu.com/?target=https%3A//assets.amazon.science/14/33/43345d8142d8936ec591f5600aa5/dietcode-automatic-optimization-for-dynamic-tensor-programs.pdf)paper 解读: [DietCode：TVM中新的动态Shape解决方案](https://zhuanlan.zhihu.com/p/590531033)TVM-RFC：[tvm-rfcs/0072-dynamic-autoscheduler.md at main · apache/tvm-rfcs](http://link.zhihu.com/?target=https%3A//github.com/apache/tvm-rfcs/blob/main/rfcs/0072-dynamic-autoscheduler.md) 代码应该还没入 TVM [github PR](http://link.zhihu.com/?target=https%3A//github.com/apache/tvm/issues/11516)主要提出了 micro-kernel 的概念来解决动态 Shape 在TVM中自动调度的问题，极大减少了搜索时间。本质上仍然是一种“分组”策略，将动态问题转化为静态问题。一般，“分组”概念停留在模型层面。DietCode 将“分组”下沉，节省大量的存储空间，并自动搜索、降低搜索时间。以 BERT 模型为例，DietCode 与 Ansor 相比， 搜索时间减少 5.88倍，性能提高约 70%
