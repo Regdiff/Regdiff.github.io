@@ -1,0 +1,184 @@
+<!-- 前面的代码保持不变 -->
+
+<style>
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+    </style>
+    
+    <!-- 后面的代码保持不变 -->
+<h1><a href="https://mp.weixin.qq.com/s/z8qzFBkJPbNAUd0Z0sFdXg">Deepseek大模型推理算法其实很简单</a></h1>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_jpg/dhIUoaayW81Dv7QfP40hgOqovia62M5ichyrVDo27zhLROsmCXut7mFtOibCsOsfsZvACBkTrg121dplsNJkIicYXA/0?wx_fmt=jpeg" alt="">2025年02月09日 07:00共 16371 字阅读需 65.5 分钟</p>
+<blockquote>
+<p>用“矩阵”轻松理解大模型推理的运行机制</p>
+</blockquote>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_gif/dhIUoaayW822Rct0icVicllzwNicEjyYrBicHwntyriadZBE2INTawdFw5x1CNuShXBXWSsdXySibXmpjZJ5bGd0oicGA/640?wx_fmt=gif" alt=""></p>
+<p>本篇文章正文共10819字</p>
+<p>预计阅读时间约为30分钟</p>
+<p>人们听说大模型已经有两年多了，不少人自己测试了对话。但舆论对于大模型还是有很多误解，应用时摸不清特性，一不小心就上当，更不知道大模型是怎么开发出来的。</p>
+<p>性能顶级的Deepseek火爆开源之后，意想不到的事发生了，人们居然很简单地就把大模型部署用上了！</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ich9I8xT6cVXz7tt0xI9lW8AxtCfmuSeTR3jtwq9RibYXWia355w7cW2jzg/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>一个朋友，在3000多元的联想lecoo酷310 PC机上，就安装Deepseek R1成功了。机器配置不高，装的是7B（70亿）参数的版本，聊天能力明显差很多。性能最强的是671B的版本，需要高一些的配置，但PC机完全可行，国外有人6000美元的机器上装成了。</p>
+<p>首先要知道，**大模型开发有两种场景，难度高的是训练，难度低的是推理（inference），**人们熟悉的也是推理。训练的成果就是“权重”，能生成性能从高到低的几个版本，权重文件从大到小。</p>
+<p>有了权重文件，**大模型的推理其实很简单！**即使对机器学习不太熟悉的人，只要稍有点知识，看了本文，完全可以理解，大模型的推理是怎么做的，真的不难。</p>
+<p>其实大模型的科普文章非常多，但为啥公众还是不太明白大模型是怎么运作的？这是因为总要提**“Transformer”**这个东西，许多人都听过，是大模型算法核心。但是要解释清楚它是啥，需要非常多的概念。我总结了下，大约需要30个前置概念，看着看着就迷糊了。但如果不说清楚，后面又没法说了。</p>
+<p>因此，本文放弃这个路线，不强行去解释Transformer。只要还原到**“矩阵”**这个简单的东西，就能明白大模型推理的运行机制了。即使人们从来没听说过Transformer、不懂它是什么，大模型推理也能明白。</p>
+<p>本文从大家都有过的，和大模型对话的推理使用经验，以及一点点简单的程序知识出发，解释大模型推理。</p>
+<p><strong>自回归生成文本的过程</strong></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichkmpRslWZAIAhxF8mXayn0vQcGESDXN08cq2fhTxyzA4Sr40n29d50A/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>我们从大模型最直观的<strong>输入输出行为</strong>开始解释。用过的人都知道，用户输入一段话，大模型就会经过一段时间的搜索、思考，输出反馈。有一定经验的人知道，可以把“联网搜索”点上，信息会准确得多；而把“深度思考”也点上，Deepseek会把思考过程也展示给用户看，这是它率先引入的新特性。</p>
+<p>不少人知道，用户输入的提示，叫“prompt”。大模型反馈输出的文字，是怎么产生的？把这些事说解释明白，大模型推理就清楚了。确实有些关键的细节，虽然简单，但是人们还真不清楚。</p>
+<p>prompt一般是文字序列。如果有图片、录像、语音输入，那就是“多模态”，为简单起见先不管。文字的prompt，如何产生输出序列，很简单。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichFrggCKRstXkibHcsT8eqJE2YSFmPnm8AAibhKd4vEJ1vhr3QPsGhUibWA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p><strong>大模型连续生成文本的方式是“自回归”</strong>（auto-regressive）。听上去有点专业，其实就是重复调用，生成的新词输出，“自回归”加到prompt后面。</p>
+<p>举个例子，上图的过程中，用户给的prompt是“Quantum mechanics is a fundamental theory in physics that”。中间的运算过程先不管，大模型会产生一个“sample token”，如一个词“provides”。注意，这个词是程序内部产生的，可以立刻输出给客户，也可以等词多了一起输出。</p>
+<p>“自回归”是说，将这个provides加到prompt后面去，“Quantum mechanics is a fundamental theory in physics that provides”成为新的prompt，再次运算产生第二个新词。不断出新词加到prompt后面，最后就得到了一句完整的话，终止运算，最终输出给用户：</p>
+<p>Quantum mechanics is a fundamental theory in physics that <strong>provides insights into how matter and energy behave at the atomic scale.</strong></p>
+<p>大模型怎么知道要终止运算最终输出了呢？<strong>如果运算产生了一个&lt;EOF&gt;</strong>（end of sequence）<strong>的特殊标记</strong>**，**说明可以终止运算，就最终输出了。另外，<strong>如果输出长度到界限了</strong>（各种模型容许的最大长度不同，Kimi的特色就是长文本能力），也只有终止了，prompt会太长没法处理了。有的大模型，会有内部逻辑判断是一个完整的句子和上下文了，直接输出终止计算。</p>
+<p>从上图我们还能发现，大模型在运算之后，不是只给一个输出选择，而是会给多种都说得过去的词。在that后面，还可以接describe、explains、gives等等，都能生成合理的句子。这些选择，各有大小不同的概率。这个概率组合叫logits（原始输出值），是大模型最直接的输出结果。不同选择后面输出序列会不一样，所以要把新生成的词加到prompt后面去。</p>
+<p>其实我们想想，**如果大模型运算之后只会输出一个词，反而能力差。大模型提供多种输出选择的概率，每种都合理、有的更常见，这才是本事。**开发者可以考察概率组合，判断模型性能。最后的输出给用户看，需要确定的结果。大模型会面对许多人，虽然单次输出是确定的，但这些输出互相不同，会有一定统计规律。和人类的语言材料库一样，词语分布也是有概率的。</p>
+<p>从语言角度来看，**大模型最根本的功能就是统计和输出概率。**贾岛琢磨，是“僧推月下门”还是“僧敲月下门”，韩愈说“敲”更好，这是文科思维。大模型是理科思维，会说“推”的概率15%，“敲”的概率20%，还有“叩、拍、打、撞、触、启、扣、抚、击、砸、碰、踢”都各有概率，都说得通。因为看待问题的角度独特，大模型能把文科本事学得非常好，我们要习惯大模型的统计概率视角。</p>
+<p>计算概率过程很长，有了概率，最终选一个词输出简单，用个函数选一个就好了。有时选概率最大那个词，有时会加一些随机性，是一个叫“温度”的参数控制的。低温输出序列稳定，高温输出序列灵活、变化大。我们让大模型作诗、写文，同样的输入，输出都会不同，就是输出选择有一定随机性。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichia2cONrBY3nEg3jfKz0Z7Xfxe4Yiaor4icPpNkpkAIvON0qhKNq66TP7A/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>再来看中间的计算过程，有两个东西要解释，**一个叫“token”，一个叫“embedding”。**有的文章把token翻译成“令牌”，很不对劲，个人觉得“词元”更好，但还是直接写成token更为精准。它就是将输入文字分为不同的类别，有时一个词会分成几个token（如不少英文单词有共同的词根、后缀）。</p>
+<p>要注意，**token是跨语言的。**很多人误认为有“英文大模型”、“中文大模型”，以为训练素材是分开的，中文素材不如英文好，所以“中国大模型不如美国，原因是中文互联网内容质量差”。这都是误会，素材是很多语言的都收集，中国开发团队也是英文和外文的都收集，可能会精心准备更多中文素材，但不会占主要部分。而且，大模型的输出是中文、英文、其它外文都会的，并没有特别区分。它是看用户提示词用哪种语言，就会输出对应的语言，天生就是通万国语言的。</p>
+<p>所以，大模型的token种类是很多的，不止汉字数量或者英文单词那么多。Deepseek V3的“词汇表”大小是129280，意思就是有这么多token种类。要明白，token不是一个个字符，也不是一个个单词。如何将一门语言的字符、单词变换成token，需要深入研究，**每个大模型都要“tokenizer”（分词算法），把输入和训练语料转成token。**在OpenAI的说明中，1个token大约为4个字符或0.75个单词。对于汉语，简单起见，我们就把token理解为一个字符，有时一个固定词组就好了。</p>
+<p>但是，tokenizer并不是专门为大模型开发的。之前业界做机器翻译的时候，就有很深研究。这些研究成果，正好用到大模型上，所以大模型是“大语言模型”。而token也不算生僻的概念，不少人知道大模型面对的是token世界，不难懂。</p>
+<p>但是“embedding”，知道的人就少多了，或者听过概念，了解也是模糊的。embedding翻译成“嵌入”，个人认为这是<strong>从“数学模型”角度解释大模型的关键</strong>，必须了解。</p>
+<p>从概念上来说，**embedding会把一个token，变成一个“向量”，也就是一维的数组。**但是要注意，在大模型中，这个数组非常大！不了解的人，想不到会这么大。</p>
+<p>例如在Deepseek V3中（671B版本），一个token通过embedding，会变成一个7168维的向量！Meta开源的LLaMa 大模型（7B版本）中，token是embedding变成4096维，都不小。一个token，要转换成好几千个浮点数组成的向量。常见的图例中，都只会画少量格子示意（如上图画成8维），有时造成错觉。</p>
+<p>大模型之“大”，首先就是从embedding开始。在程序中，一个token用一个整数代表就行，占空间很小。但是从embedding开始，就进入了**正式的矩阵处理过程，**输入一下变大很多。</p>
+<p>**每个token都对应固定的向量，维度都一样，**如7168维。有专门的embedding算法，词元嵌入算法。嵌入算法定好以后，就能初始化算出固定的“词元嵌入矩阵”，供直接查表。Deepseek V3的词元嵌入矩阵大小是129280 * 7168，每个类别的token，直接根据序号，查到对应的7168维的向量。</p>
+<p>一个prompt会有多个token，在embedding之后合成一个矩阵。如8个token，就会生成一个8*7168的矩阵，作为大规模矩阵计算的起点。新prompt增加长度，输入矩阵也会变大，但7168这个维度是不变的。</p>
+<p>计算过程，会经过多个**“中间矩阵”**（intermediate matrices），一个个往下算。最后，就从矩阵变成logits那个概率分布组成的向量。这就完成了“对于这个prompt，下面一个词接什么好”的计算任务。</p>
+<p>这个过程也不需要太多矩阵知识，就是<strong>矩阵乘法和加法</strong>。例如，8*7168的矩阵，与7168*7168的“方阵”相乘，结果还会是一个8*7168的矩阵，维度不变。还有矩阵加法，相同大小的矩阵可以相加。</p>
+<p>这一节就粗略理解，**主要计算过程就是embedding出来的输入矩阵，不断相乘相加。**相乘相加的对象，从输入矩阵开始，有中间矩阵，还有固定的参数矩阵（训练好之后，推理应用中不变）。最终目标，是为了计算最后那个概率向量。</p>
+<p>如果看到这真理解了，即使往下不看了，也应该学到不少知识了。矩阵计算细节不了解，也不影响前面学到的知识，比一般人对大模型的理解要多了。是不是很简单？</p>
+<p>下面我们再把矩阵相关的大模型操作介绍一下，也不复杂。这对应了Transformer内部的一些操作，如果用正宗的机器学习术语，会比较难懂。但我们用矩阵来解释，就容易理解。</p>
+<p>解释矩阵操作，我们可以参考一点开源大模型的代码。不是说要读者去看代码，而是引用代码的一些简单信息，更容易理解矩阵操作的过程。这样介绍，比解释Transformer的一堆学术名词要容易。下面我们就来介绍一点开源代码的简单信息。</p>
+<p><strong>简单的大模型开源代码</strong></p>
+<p>我们听说Deepseek是开源的，这具体是什么意思？**训练代码没有开源，**但是在论文与技术报告中介绍了关键的Deepseek V3和R1大模型训练的的一些细节，业界人士积极阅读解释。**开源的是两个东西，一个是权重，一个是推理代码。**这两者是什么关系？可以理解为：权重是人类知识的加密压缩，推理是解码检索知识的工具。</p>
+<p>权重方面，主要是Deepseek R1的6710亿个参数的版本，代表了最强性能。还有6个小一些的，这比较特别。参数个数为15亿、70亿、140亿、320亿的，是用6710亿参数那个R1和阿里开源的Qwen“联合培养”出来的。这些参数数量是Qwen四个模型开源时定下的，Deepseek帮着把里面的系数改进了下，性能强大了不少。参数个数为80亿、700亿的，是Meta的LLaMa系列两个开源的大模型，Deepseek同样帮着改进了系数，提升了性能。</p>
+<p>大模型开源，还要把推理相关的代码公布出来。有推理代码、有权重文件，别人就能用了。大模型推理过程很简单，从程序代码行数就能看出来。Deepseek V3的推理源码，是用python语言写的，最大一个代码文件model.py才800行！加上别的源文件，一共1500行代码就差不多了。</p>
+<p>需要解释下，我们测试的是Deepseek R1大模型。它和Deepseek V3是啥关系？其实，两个大模型结构是一样的，都是6710亿个参数。V3在2024年12月26日先公布，业界有不小反响，当时就说了550万美元训练成功，但由于性能还不如OpenAI最强的o1闭源大模型，没有出圈。2025年1月20日公布的R1，性能追平o1，又开源、又低价，这才引爆全球舆论。</p>
+<p><strong>R1就是从V3改进而来，通过几个阶段的“强化学习”，能力变强了，但****区别只是权重不同</strong>。所以，V3的推理代码直接给R1用就行。关注工程实现的人会更注意看V3的技术报告，里面有更详细的大模型细节。而R1的技术报告，主要是解释开创性的“强化学习”技术，学术意义更大。工程意义上，V3的细节比R1的多得多，算法与数据结构细节更值得研究。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichzjIc0po7584kV0azVfdeyAZbe2LnYbjQx7iaCOI7Ac4YHTvNEYwC8jg/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>Deepseek V3 inference源码：model.py</p>
+<p>我们来看看Deepseek V3推理源码中的model.py的开头几行。例如里面有个fp8_gemm，就是说Deepseek实现了fp8的gemm。新闻里提到Deepseek将8比特的浮点数用于大模型开发，是一大创新，能加速运行。fp8就是用8比特表示浮点数（一般是32比特来表示，或者16比特），gemm是指矩阵乘法，机器学习的许多加速大招都是对它下手的。</p>
+<p>从“import torch”两个词，可以看出Deepseek用了Meta的PyTorch深度学习框架。这就是开源的力量，很厉害的程序代码也不长。美国Meta公司开源了LLaMa大模型，之前还建立了PyTorch（基于Torch机器学习库）开源社区，这有力促进了全球机器学习与大模型研发的发展。而Deepseek也开源自己的推理代码和权重，大模型性能超过LLaMa，进一步壮大了开源社区的力量。</p>
+<p>Deepseek推理代码很短，只有1500行，还因为python就是伴随着机器学习流行起来的，很合适。用C++来写大模型推理代码也是可以的，一些读者更习惯，但是代码就要长一些。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ich8Oqtqj0LCTVeT7tE4X0eVSIeJsbntWD96ibUgAAeuqVjiacjbyl3qs7Q/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>LLama源码中ggml库相关部分</p>
+<p>Meta的LLama大模型有C++工程源码，也是关于推理的。核心的llama.cpp有1万行，里面描述了如何进行推理计算。加上别的源文件，一共3万多行代码，底层实现都写清楚了。如果对C语言与C++开发有一定经验，会明白3万行代码不算复杂，代码结构模块化封装好了并不难懂。</p>
+<p>LLama源码中另外还有个<strong>张量</strong>（tensor，可简单理解为向量和矩阵）<strong>运算库ggml</strong>，要支持各种平台和硬件，如cuda、opencl、blas，代码量要更大。这是C工程的特色，代码文件较多，python的代码和库更紧凑。但C工程的库函数弄好了就不用管了，编译就行。</p>
+<p>张量运算库ggml里出现了cuda，这个就是英伟达GPU相关的内容。可以这样理解，源码中的一般逻辑，用CPU去执行就行，但是与矩阵计算相关的，需要GPU硬件加速。不少新闻说，训练高水平大模型需要几千、几万个英伟达GPU，万卡阵列，用别家的GPU不好用，因为需要CUDA环境。需要注意，这说的是<strong>大模型训练，现在还是英伟达垄断。</strong></p>
+<p>但是，如果是说大模型推理，真的不需要英伟达GPU，不需要CUDA。从上面ggml张量库的目录就能看出，有很多种选择。代码都写好了，不用英伟达GPU也没问题，甚至不用GPU用CPU都可以，就是慢点。新闻中说了，AMD、华为昇腾的GPU，还有不少公司的GPU，乃至个人PC没有专用GPU的，都成功整合了Deepseek R1。这说明大模型推理的计算，是相对简单的。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichCwRiau8II3zoY4ovBfFBMcbYhxYVEAJOwO2xGjG2K2W173Xlca5ibjicw/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>Deepseek V3 671B的Jason格式config配置文件</p>
+<p>看代码，很多东西都非常清楚，有些资料反而说得稀里糊涂。如Deepseek性能最强的671B版本，上图是配置文件，其中明确写了，vocab_size是129280。这是说，词汇表（vocabulary）大小是129280，也就是有这么多类的token。而“dim”是7168，就是指embedding的向量维度（dimension）是7168。</p>
+<p>还有一些数值，一时不明白不要紧。也不需要把什么参数都搞懂，把容易懂的解释下，就能明白大模型的大致结构了。代码中的一些关键信息，可以让读者最直接理解大模型。</p>
+<p>我们接着解释大模型中的矩阵运算过程。前面一节说到embedding生成了输入矩阵，从这往下说。</p>
+<p><strong>大模型中的矩阵分层计算</strong></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichsj95HLTicW3dhLic8IdzeTh1YqkMDNlQc7eI5pibKsxIpntjrzU8GuJlw/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>首先要明白，**大模型的矩阵计算，是分层进行的，**一个layer接一个layer。如果对神经网络有点基本常识不难理解，和深度学习里面的“前向推导”计算是差不多的。如上图，在大模型中，每个layer都是Transformer Layer。可以先不管右边Transformer的内部结构，搞不懂不要紧。就看左边简单的layer结构，这还是好懂的。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichd9UvBCoVI7IfaWEB6wsicoNTEYVYicVSeJB1zThL8SNEzdhlpL0rBLJg/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>为难读者的Transformer原始结构图，2017年论文提出</p>
+<p>不少大模型科普文章，会从上面这个经典的Transformer结构图开始。个人感觉里面不好懂的概念较多，外行很难抓住重点。例如很多人看了好久还没明白一个基本点，其实这只是一层的结构，大模型里会有很多层。而且这个结构是2017年的经典论文《Attention Is All You Need》提出的，那时还没有大模型，引入它的目的是机器翻译，而不是大模型。所以图中的结构解的是seq2seq问题，从一个文字sequence（一国文本）转换到另一个sequence（另一国文本），先用Encoder（编码器）计算输入sequence的“状态”，然后再将“状态”输入到Decoder（解码器），解码输出对应的翻译文本。笔者之前介绍机器翻译的文章<a href="https://mp.weixin.qq.com/s?__biz=MzI0NzQzMjU3Ng==&amp;mid=2247532910&amp;idx=1&amp;sn=894c347a38cd0252ac622549ff36eb57&amp;scene=21#wechat_redirect"><em>《每当我解雇一个语言学家，语音识别的性能就会上升 | 科技袁人》</em></a>，就解释过Encoder-Decoder架构。</p>
+<p>现在流行的GPT大模型，和机器翻译是很不相同的，**不是Encoder-Decoder架构。**机器翻译是一段文字对应另一段文字，对应关系较为明确，翻译不会差异太大。而大语言模型是根据prompt生成一段输出，对应关系灵活，小段提示能有差异很大的大段输出。而且有上下文连续对话，前面的对话也有关。</p>
+<p>现在说大模型，一般是指GPT（Generative Pre-trained Transformer），用于文本生成任务。它的架构应该算是**“纯Decoder”**，也就是拿embedding出来的矩阵当输入，就能解码出一个token输出，那些连接的layer全都算是一个Decoder。</p>
+<p>如果只看推理应用，从大的架构上看，**GPT大模型其实比机器翻译简单。**个人认为，很多人从机器翻译的Transformer学起，前面还要学习RNN（循环神经网络，Recurrent Neural Network）引入的“注意力机制”，这反而造成了学习大模型的困难。不如直接学简单的GPT推理架构，不懂Transformer，不懂Attention，不懂“自注意力”Self-Attention，也能根据矩阵操作看懂计算过程。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichic2nj7Hy4xg8EeWiayRQgrQ1icIwoYEIO3Al6OqgOm9kgW518mzicbmjjQ/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>在前面的Deepseek V3的配置文件中（6710亿参数版本），n_layers是61，就是说有61个Transformer Layer。而LLaMa（70亿参数版本）的layer数量是32，参数少的模型，向量维度小一些，层数也会少。每个Layer的输出，就是后一个Layer的输入，维度要保持一致，和一开始embedding形成的矩阵一样大小。最后一个layer的输出，会特别变换成为logits概率向量，就对应图中的“Prediction Head”，再选择一个token作为一次生成的输出。</p>
+<p>要注意，每个layer的“结构”都是一样的，所以代码里就是循环。但是，每个layer都有自己固定的参数矩阵（训练出来的），这是不一样的。**大模型的威力，就在这些参数矩阵中，**但是推理代码里看不出，直接从权重文件中读取。</p>
+<p>下面介绍layer内部的计算过程。如果光介绍计算过程，相对简单。论文和科普文章会抽象描述Transformer架构中的概念，有算法意义，但比较复杂，可以先不管。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichDJ5YySjA5OAneV2kgC2n5XJxoaZudH9ontnrYojQEG5OxTUdPsL4eA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>上图就是从输入的矩阵，经过几步计算，形成输出矩阵的过程。上半部分是几个矩阵计算步骤，只有三四种概念，不难。下半部分是说，矩阵计算需要的“参数”，是训练好放那的，不变的，几套矩阵参数分别参与某个矩阵计算步骤。再次指出，每个layer都有自己的参数矩阵。为了简单起见，上图以LLaMa的layer为例。DeepSeek对Transformer进行了底层创新，细节有些不一样，但大体一致。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichKF6kr11ficzia0LuGepEib8DOMKHmBUk56gwYkrx92uURt1AviaGDdtSbA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>我们先来看前半部分。一层的输入矩阵进来了，就是“Input”，它会做一个“Norm”操作，然后再来个“Self-Attention”操作，然后再和Input矩阵Add相加。矩阵相加很容易理解，需要解释的是Norm和Self-Attention这两个矩阵操作。这图是LLaMa 7B的，图中n_embd等于4096。需要指出，<strong>这个维度数值在大模型中特别重要，有时它被称为“hidden size”，相关矩阵或者向量的维度都是它。</strong></p>
+<p>Norm操作，图里对应LLaMa中的RMSNorm（根均方归一化，Root Mean Square Normalization）。数学意义很简单，就是对一个4096维的向量，算出均方根值（所有数值的平方和除以4096，然后开根号）；再把每个数值除以这个均方根值，这叫做“归一化”。最后一个特别的处理是，对每一个维度数值，都乘以一个训练而来的“缩放因子”，一共4096个缩放因子，组成“norm weights”（归一化权重）作为固定的参数。</p>
+<p>从这个操作可以看出，它是在对Input矩阵中的元素进行计算，还要和固定的参数向量相乘。这是可以并行加速的，用GPU来做快得多，所有矩阵操作都是如此。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichYViaykoUEvxdAKt1VaaONvQOqRnib1pdbkHcU3zjEFtqgoibEpDSpF6ag/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>而**Self-Attention（自注意力）操作，是大模型最核心的数学计算。**意义可以说得比天还大，就是建立起一个prompt中所有token与token之间的复杂联系，数值大联系就大。它关心的是输入内部的联系，就好像是人的自省，所以叫做“自注意力”。</p>
+<p>矩阵操作上并不复杂，就是有四个训练好的大小一样的方阵W_k、W_q、W_v和W_o（都是4096*4096），与上步Norm输出的矩阵（大小是n_tokens*4096，n_tokens是prompt生成的token数量）进行相乘运算。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichEd39o1CHRsiaqCnoIAGPmWJdP6Hx5ehIN6SRfb6jftuWxGHCZMrc4Jw/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>一个4096维的向量，和4096*4096大小的方阵相乘，会得到一个4096维的向量。而输入矩阵有n_tokens个向量，将它和W_k、W_q、W_v相乘后，我们能得到三个n_tokens * 4096的矩阵，分别叫K、Q、V。这三个矩阵，在科普中叫作“键”、“查询”、“值”矩阵。</p>
+<p>然后，再将Q和K的“转置矩阵”相乘。也就是n_tokens * 4096的矩阵Q，乘以4096 * n_tokens的矩阵K’，得到一个<strong>n_tokens * n_tokens的方阵</strong>，叫它<strong>KQ方阵</strong>。这我们可以介绍下直觉意义了，这等于是，将prompt中的每个token，和所有别的token，都用一个数值建立联系。prompt中两个词联系紧，对应的数值就高，这就是所谓的“注意力”（Attention）。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichTMlBPtzlibBHmUgf9zJhcuTCCWFHSYPicBezGHjuoIfia8iciazKN6ORQKA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>在常见的解释“注意力机制”的科普文章中，这个句子“The animal didn’t cross the street because it was too tired.”常常被引用。对“it”对应的token，和别的所有token建立联结。it实际是指代the animal，联结就应该深一些（在方阵中数值高）。而it理论上可能是指street，但实际不是，联结就应该浅一些（方阵中数值低）。</p>
+<p>而**所谓Self-Attention（自注意力），就是一个prompt中的token序列对自己内部的token的注意力。**在RNN的注意力机制中，不是self-Attention，不是“自”的。这与机器学习发展历史有关，弄懂需要一些背景知识，有兴趣的读者可自行搜索。大模型用“自注意力”就行，不了解怎么从Attention发展出来的，不影响理解。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichS7w8YG5lAbNwyaSFXzboib9kIrMic77icCH9JfAA1sM5dffjxecVsSoNA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>接着往下处理。Q和K的转置矩阵相乘，得到KQ矩阵（还要除以64，也就是维度4096的根号）。KQ矩阵会来个掩码操作，把上半部分数值移除设为无效，得到KQ_masked矩阵。</p>
+<p>在LLaMa代码中，掩码操作是有一个掩码矩阵，右上角是负无穷大，别的地方是0。KQ矩阵和它相加得到KQ_masked。这样右上角数值变成负无穷大，别的地方注意力分数不受影响。负无穷大在变换为概率时，对应0概率。</p>
+<p>进行这个掩码操作的具体原因是，<strong>大模型要“用前面的输入预测后面那一个词”，而非“预测后面跟着的一堆词”。</strong></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichB0r9F9cZpRmlxWvT3dia420I8BxZHXpBibicX0PibxibI9ibibJ0p5Ee9tjgQ/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>Self-Attention最后一步，将KQ_masked矩阵（n_tokens * n_tokens），与V矩阵（n_tokens*4096）相乘，得到最终的KQV矩阵（n_tokens * 4096的）。它就是Self-Attention这步的输出。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichrCOOEt9s9LF67CmOaXHibia2u679YGemB2GoTEiaXEsQzgZUyPXouNPVA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>这个KQV矩阵，和Input输入矩阵是一样大的。所以，可执行一个Add操作，矩阵相加。别看这么简单的相加，学名叫**“残差连接”**（Residual Connection），对于深度学习训练很重要。这些操作精心设计，就是要弄得输入和输出矩阵维度一样，很大原因也是为了干“残差”连接。</p>
+<p>在训练神经网络的过程中，为了知道每一个参数下一步向什么方向改变、改变多少，需要计算**“梯度”**，即某些导数。但这些梯度的数值容易失控，网络层数一多，梯度就过小逐渐消失，或者过大爆炸。残差连接引入一个直接的路径，将输入直接往后传远一些，避免了梯度在传播过程中的消失或者爆炸。简而言之，就是加强了训练的稳定性。</p>
+<p>前面说了计算自注意力需要四个方阵，到这里为止已经解释了三个，W_k、W_q、W_v。还剩下一个叫做W_o，这个和**“多头注意力机制”<strong>（Multi-Head Attention）有关。为简单起见，我们前面说的计算过程，都是</strong>“单头注意力”**（Single-Head Attention），等于用一个视角看prompt内部的自注意力。高水平的大模型，必须有其它视角（注意力头）来观察，注意力的值会发生变化。如有的视角重视逻辑关联，有的重视语法关联，有的词本身就是多种含义。W_o是帮助KQV矩阵进行线性变换，映射回原始的特征空间。先不要管它，多头就是在单头的基础上，建多份结构差不多的东西。</p>
+<p>LLaMa 7B有32个“注意力头”，等于这些结构要抄32份。而Deepseek V3的多头注意力机制，有128个“注意力头”。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichDJ5YySjA5OAneV2kgC2n5XJxoaZudH9ontnrYojQEG5OxTUdPsL4eA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichKzkF1yljfETrnxUP4o1lticEqCzAsBAI8k7u3jEb3A1bAtMKaI6B2gg/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>下面，我们再来看layer内部的计算过程的后半部分，这就简单多了。先是一个和前面一样的Norm操作，对前面KQV与Input加出来的矩阵，来个归一化。尾巴上又是一个一样的Add操作，还是“残差连接”。只要理解那个Feed-Forward（前馈神经网络）就行了。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichq9iamfJeU86bWmbmv3bOkXoHha4FR0ReWwTBmriblws0QZa6QMcouLIA/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>**Feed-Forward被称为FF网络，有一个参数n_ff。**如果对于深度学习中常见的，一个隐藏层（hidden layer）的“全连接”神经网络有点了解，会发现就是一样的东西。FF网络就是有一个维度为n_ff的隐藏层。在Deepseek V3的配置文件中，有个inter_dim参数是18432，就对应n_ff。在LLaMa 7B大模型中，n_ff数值是11008。这都是说FF网络中的隐藏层维度。</p>
+<p>而FF网络的Input layer是n_tokens*4096的矩阵。对于每个4096维的向量（一共n_tokens个），都和全连接上的系数矩阵相乘，在隐藏层会得到一个n_tokens*11008的矩阵。用矩阵语言来说，是一个n_tokens*4096的输入矩阵，和4096*11008的矩阵乘（就是前图中的W_1），得到n_tokens*11008的中间矩阵。然后再用它和11008*4096的矩阵乘（就是前图中的W_2），得到n_tokens*4096的输出矩阵，又和输入矩阵维度一样了。</p>
+<p>在深度学习和大模型的FF网络计算细节中，向量与矩阵乘了之后，还得对每个元素再加上一个bias数值，再用ReLU（一个函数，当x &lt; 0时取0，当x ≥ 0时等于x）等“激活函数”生成最终的值。这就是一点附加小处理，没矩阵乘法那么壮观。</p>
+<p>前图的FF网络还有个W_3，那也是为了多头注意力机制引入的。主要还是W_1和W_2，进行了“先把4096的输入向量维度升到11008，又降回4096”的操作。</p>
+<p>到这，Layer前半部分和后半部分的矩阵运算都介绍了。我们基本解释了大模型Layer内部矩阵运算的过程。</p>
+<p>几十层的layer结构中，KQV矩阵不断被计算出来，又传输到FF网络，再到下一个layer，中间隔着一些Norm和Add操作。推理就是这么简单，矩阵概念上并不复杂。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichIF4fgHQcXXJuqqYuFtNvPwOwjGecX5uh00C924Y2mI25VArvFBsgPw/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>还差最后一个环节要介绍。在最后一个Transformer Layer输出后，要计算<strong>logits</strong>（概率向量）。最后一层输出是n_tokens*4096的矩阵，和embedding形成的输入矩阵维度一样。最后一个矩阵操作是，将它乘以一个固定的output矩阵（4096*32000的），得到一个n_tokens*32000的矩阵，32000是LLaMa 7B的词汇表大小。</p>
+<p>虽然最终得到了一个大矩阵，但我们只关心它最后一行的那个32000维的向量。它就代表最终需要的logits概率向量，说明下一个token可以是什么。所以我们知道，logits向量是非常细的，词表中的每个token都可能输出，只是绝大多数概率为0或者极小。神奇的是，概率较大的那些token，还真就能接上prompt形成合理句子。</p>
+<p>至此，生成一个token的计算过程描述完毕，基本全是矩阵操作。再结合第一节的“自回归文本生成”方式，我们能大致明白，大模型推理时，是如何一个个词不断跳出来的。</p>
+<p>为了让大模型的推理过程好懂，笔者对以上的过程还是进行了一些简化。例如，虽然过程中我们说的都是矩阵运算，但是在实际代码中是张量（tensor）运算。张量可以是向量，也可以是矩阵，还可以是多个矩阵，相当于在矩阵的二维之外，再多出一个或更多的维度。因为实践中，有“多头注意力机制”，我们说的一个矩阵运算，实际对应“一套矩阵”。在训练以及推理的优化中，还会有一个批次的输入，而非一个prompt。但理解了矩阵运算，再去理解张量运算也不难，就是多了需要加速的维度。</p>
+<p>而我们描述的大模型推理，是最基本的结构，并非对应Deepseek V3改良后的结构。但有了最基本的理解，再去看V3的技术报告，学习MoE（混合专家模型，Mixture of Experts）、MLA（多头潜在注意力机制，Multi-Head Latent Attention）这些复杂概念，都会变得容易一些。</p>
+<p>我们还可以注意到，**大模型推理过程有非常多的优化空间。**prompt不断更新，但和前一次推理的prompt非常相似，极多的矩阵运算其实是重复的。这些优化就需要对底层代码实现深入讨论，对于一般读者过于复杂了。</p>
+<p>本文希望读者大略明白大模型的推理过程，理解一些关键名词，脑海中建立矩阵与向量分层不断计算的图景，理解大模型输出token概率的特性。这样，就会对神秘的大模型祛魅，不会被吓住。</p>
+<p>如果有志于了解深度学习、大模型研发相关的技术名词，那确实有非常多细节，需要下功夫仔细学习。但数学水平过得去的读者，只要肯从最基本的数学概念建立起理解，明白大模型研发在干什么，并没有那么难。</p>
+<p>大模型训练比推理要复杂得多，但相比推理，主要的计算过程和数据结构，并没有复杂太多。只是训练过程有很多步，有的训练这个性能，有的训练那个性能，要有“pipeline”（管线）来组织训练过程。由于训练需要的算力比推理高得多，还要优化高效利用英伟达GPU卡，别的卡还不好用。所以，学习难度要高得多。但基本操作是类似的，<strong>只要不被名词吓住，还原到向量和矩阵运算上去，都是可以理解的。</strong></p>
+<p><strong>联网搜索与深度思考</strong></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichkmpRslWZAIAhxF8mXayn0vQcGESDXN08cq2fhTxyzA4Sr40n29d50A/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>最后一节，我们把Deepseek的**“联网搜索”和“深度思考”**功能解释下。有些别的大模型也有了类似功能，高水平的都必须有。</p>
+<p>不联网、不深度思考，根据用户prompt大模型给出反馈的过程，前面解释了。这种情况下，它只能用内部固定的权重来回答问题，只有训练完成时的信息。2024年上半年之前的事Deepseek R1知道，之后的事不知道了。而且知道的事也不那么详细，即使训练素材中有，也通过训练“压缩”进权重里了。</p>
+<p>**大模型输出最看重的是语言形式“像模像样”，**人们乍一看，还以为它真知道，其实很多输出的信息都是胡编的，矩阵算出来token是啥就输出啥。解数学题也是，形式上一步步挺像回事，仔细一看推理逻辑是蒙的。这就是著名的“幻觉”问题，其实非常严重，很多人被大模型蒙了还不知道。</p>
+<p>**一个缓解问题的办法，是用“联网搜索”，得到更多信息帮助，减少幻觉。**有时大模型会自行判断，需要联网搜索获得更多信息。应用“联网搜索”的过程并不简单。</p>
+<p>大模型需要联网搜索时，会通过内置的工具调用，根据用户输入的prompt，生成搜索参数，将参数发送给指定的搜索引擎（或数据源）。搜索引擎返回相关的搜索结果，可能包括网页内容、新闻摘要、数据等等。</p>
+<p>这些搜索结果会作为额外的上下文信息，供大模型处理。**大模型不是简单地将其与用户输入的prompt拼接，而是动态地将搜索结果整合到知识体系中，结合prompt生成最终的输出。**模型有内部逻辑和注意力机制，对用户输入和搜索结果进行综合分析和理解，生成更准确、更全面的回答。为了提高效率和减少计算开销，还需要对搜索结果进行筛选和压缩，如只提取与用户问题最相关的部分，或者对搜索结果进行总结和提炼。</p>
+<p>大模型肯定需要<strong>对搜索结果进行处理</strong>，因为很多搜索结果本身就挺复杂，大模型得去“理解”它。就如有些用户对大模型应用时，会先输入一个pdf文件（如论文），大模型先会“阅读理解”里面的大段信息，内部状态更新，准备好之后，就能与用户连续对话聊这个文件中的信息了。这个大模型能力是需要开发的。</p>
+<p>因此，**大模型的“联网搜索”，是智能、动态的功能，会耗费更多算力。**有时用户较多就没法支持了，就如Deepseek爆火之后，没想到需求这么多，有时不让用联网搜索了。</p>
+<p>“深度思考”的学术意义更大，更值得向读者介绍。</p>
+<p>**“深度思考”在算法意义上，是目前大模型开发的最前沿技术。**DeepSeek就是率先向用户展示了深度思考的中间结果，而且很像人在自我思考，在国际上引发轰动了。深度思考是OpenAI先引入的，但在其领先的o1模型中，中间思考没输出，技术细节也按惯例神秘化不说清楚，夸大实力。</p>
+<p>Deepseek向全球公布了**“强化学习”训练深度思考**的完整机制，让业界惊叹，这是继“涌现”之后最重要的大模型研发成果。机器自言自语思考越来越厉害，居然是可以直接“强化学习”，不要人类中间提示，只靠最终答案训练出来。</p>
+<p>一般认为，需要人为准备很多COT（思维链，Chain of Thought，类似人类做数学题生成的中间步骤）素材，进行SFT（有监督微调，Supervised Fine-Tuning），**像老师教学生一步步解题那样，很麻烦地教会大模型深度思考、深入推理。**因为太麻烦，教得不太成功。以前的大模型不是没探索过“思维链”，但成果不突出。甚至也试过类似DeepSeek的“自己看题目和答案没老师”强化学习的办法，但训练不收敛，失败了。所以业界才认为，看来是需要SFT才能学会思维链。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW81Dv7QfP40hgOqovia62M5ichtgian5tuWubTVpByw54MuBfP2gS1edOpuCic3LwYvB7QicIUKu6Xw6ib1Q/640?wx_fmt=png&amp;from=appmsg" alt=""></p>
+<p>而Deepseek让基础能力不错的V3（就是本文介绍的版本），面对海量有答案的问题（准备答案容易，准备详细逻辑过程很麻烦），自己“强化学习”摸索，不要人工监督干预。思考其实也是不断生成token（就是本文介绍的推理过程），但是在输出中明确用和包起来。V3自己不断思考，生成COT。有些COT是无效的，但有些与最终答案是相关的，就据此修改自己的系数，学习逐渐有进步。</p>
+<p><strong>随着训练进行，V3生成的COT越来越长，逻辑水平越来越高。<strong>甚至有“顿悟时刻”（Aha moment）发生，大模型明显逻辑能力跃升，对标OpenAI发现的大模型能力</strong>“涌现”</strong>。最后训练成功收敛，V3进化为逻辑能力明显强得多的R1-Zero。</p>
+<p>研究者总结，这是因为V3的基础能力不错，像聪明学生一样“自学成材”了。基础能力不够的硬来，那自学的结果就会是悲剧。所以，V3的精细开发可能起了更重要的作用，并非想到一个简单的好主意就能成功，别人并不是没想到过。</p>
+<p>R1-Zero的逻辑能力强，但只会在和中间展示能力，不太会和人沟通，自言自语不太好懂，甚至会多国语言混着来。OpenAI被DeepSeek逼得着急发布了o3-mini展示能力，也公开了思维过程，但就被人发现有时居然用中文思考，引发怀疑。从本文介绍的推理原理看，应该是token中包括了英文和中文等多种文字，计算结果输出中文对应的token了。</p>
+<p>DeepSeek就再用许多训练手段，如给COT输出打分，消除语言混乱，提高COT输出的可读性。这样就开发出了大家熟悉的R1，逻辑能力非常强大，输出对用户也友好。</p>
+<p>我们在应用时选“深度思考R1”，会先有COT思考中间输出，类似“联网搜索”一样，也结合进大模型知识体系里，一起给出更有逻辑性的最终输出。用户都会发现，大模型能力明显比不深度思考要强得多。</p>
+<p>Deepseek还有许多模型结构创新、深度优化，是与大模型训练相关的。本文介绍的推理过程，能够帮助读者理解相关细节。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_gif/dhIUoaayW82zKJwLtebKLr2qJNFDU3qiaLCEfxr6Boh7iaOXFeFCzwRfRIFonib6l2GZyEuIIETJoYDJXnmMTdE0Q/640?wx_fmt=gif" alt=""></p>
+<p><strong>版权说明</strong>**：未经授权严禁任何形式的媒体转载和摘编，并且严禁转载至微信以外的平台！**</p>
+<hr>
+<p>文章转载自“风云之声”，仅代表作者观点，不代表科学大院立场。转载请联系cas@cnic.cn</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_gif/dhIUoaayW83w4mEvmgM2jpIp4NGHbGcO5flq9icibvjhFcfuL6WLQqsfmaMzwTknLogYe1KOUS843BBXia7tzQia3A/640?wx_fmt=gif" alt=""></p>
+<p><strong>推荐阅读</strong></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzI3MzE3OTI0Mw==&amp;mid=2247575019&amp;idx=1&amp;sn=22c04521cff0847ee433545524161037&amp;scene=21#wechat_redirect"><strong>GPU是打游戏的？不，是用来训练AI的</strong> &gt;&gt;</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzI3MzE3OTI0Mw==&amp;mid=2247581408&amp;idx=1&amp;sn=478f9b77e92750abb7794498aa228eac&amp;scene=21#wechat_redirect"><strong>学大学数学的人，可能都被这个折磨过</strong> &gt;&gt;</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzI3MzE3OTI0Mw==&amp;mid=2247559121&amp;idx=1&amp;sn=9a22ed6c7379bd788d36b2d1f0acf569&amp;scene=21#wechat_redirect"><strong>第四次工业革命要来了？</strong>&gt;&gt;</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzI3MzE3OTI0Mw==&amp;mid=2247512277&amp;idx=2&amp;sn=39a96e9a8708e87a5ab1ccefac579352&amp;scene=21#wechat_redirect"><strong>人工智能，天使还是魔鬼？</strong>&gt;&gt;</a></p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_gif/dhIUoaayW83w4mEvmgM2jpIp4NGHbGcO5flq9icibvjhFcfuL6WLQqsfmaMzwTknLogYe1KOUS843BBXia7tzQia3A/640?wx_fmt=gif" alt=""></p>
+<p><strong>推荐资源</strong></p>
+<p>关注使用**“科学与中国”**小程序，可观看以院士科普视频为代表的优秀科普视频，第一时间获取中国科学院公众科学日、科学节等科普活动报名信息。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/dhIUoaayW818MoZiatdQ6GzazNlPVXrLMvn4icQDoZbr7jY2oD65qW8HYW4miaWviaOt4H6r9xhicOYb4W6XM0DZMYg/640?wx_fmt=png" alt=""></p>
+<p>科学大院是中国科学院官方科普微平台，致力于最新科研成果的深度解读、社会热点事件的科学发声</p>
+<p>主办机构：中国科学院学部工作局</p>
+<p>运行机构：中国科学院计算机网络信息中心</p>
+<p>技术支持：中国科普博览</p>
+<p>转载授权、合作、投稿事宜请联系cas@cnic.cn</p>
+<p>大院er拍了拍你：不要忘记</p>
+<p>点亮这里的 <strong>赞</strong> 和 <strong>在看</strong> 噢~</p>
+<p>&gt;由 [Circle 阅读助手](https://circlereader.com) 生成</p>
